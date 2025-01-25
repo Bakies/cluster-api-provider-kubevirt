@@ -20,6 +20,7 @@ import (
 	gocontext "context"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -186,7 +187,6 @@ func (r *KubevirtMachineReconciler) Reconcile(goctx gocontext.Context, req ctrl.
 }
 
 func (r *KubevirtMachineReconciler) reconcileNormal(ctx *context.MachineContext) (res ctrl.Result, retErr error) {
-
 	// Make sure bootstrap data is available and populated.
 	if ctx.Machine.Spec.Bootstrap.DataSecretName == nil {
 		if !util.IsControlPlaneMachine(ctx.Machine) && !conditions.IsTrue(ctx.Cluster, clusterv1.ControlPlaneInitializedCondition) {
@@ -434,7 +434,6 @@ func (r *KubevirtMachineReconciler) updateNodeProviderID(ctx *context.MachineCon
 }
 
 func (r *KubevirtMachineReconciler) reconcileDelete(ctx *context.MachineContext) (ctrl.Result, error) {
-
 	patchHelper, err := patch.NewHelper(ctx.KubevirtMachine, r.Client)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -590,12 +589,10 @@ func (r *KubevirtMachineReconciler) reconcileKubevirtBootstrapSecret(ctx *contex
 	_, err := controllerutil.CreateOrUpdate(ctx, infraClusterClient, newBootstrapDataSecret, func() error {
 		newBootstrapDataSecret.Type = clusterv1.ClusterSecretType
 		newBootstrapDataSecret.Data = map[string][]byte{
-			"userdata": value,
+			"userdata": []byte(strings.Replace(string(value), "${HOSTNAME}", s.Name, -1)),
 		}
-
 		return nil
 	})
-
 	if err != nil {
 		return errors.Wrapf(err, "failed to create kubevirt bootstrap secret for cluster")
 	}
@@ -605,7 +602,6 @@ func (r *KubevirtMachineReconciler) reconcileKubevirtBootstrapSecret(ctx *contex
 
 // deleteKubevirtBootstrapSecret deletes bootstrap cloud-init secret for KubeVirt virtual machines
 func (r *KubevirtMachineReconciler) deleteKubevirtBootstrapSecret(ctx *context.MachineContext, infraClusterClient client.Client, vmNamespace string) error {
-
 	if ctx.Machine.Spec.Bootstrap.DataSecretName == nil {
 		// Machine never got to the point where a bootstrap secret was created
 		return nil
@@ -631,7 +627,6 @@ func (r *KubevirtMachineReconciler) deleteKubevirtBootstrapSecret(ctx *context.M
 // If a capk user is already defined, then overrides it.
 // The returned boolean indicates whether the userdata was modified or not.
 func addCapkUserToCloudInitConfig(userdata, sshAuthorizedKey []byte) ([]byte, bool, error) {
-
 	// This uses yaml.Node and not an interface{} to preserve the comments, ordering, etc. of the
 	// cloud-init user-data (the indentation might be modified and aligned).
 	// Note that go yaml nodes are not a direct representation of the logic structure of the content;
@@ -707,8 +702,7 @@ func addCapkUserToCloudInitConfig(userdata, sshAuthorizedKey []byte) ([]byte, bo
 // usersYamlNodes generates the yaml.Nodes representing the 'users' key and the sequence of users
 // with the capk user and the specified ssh authorized key.
 func usersYamlNodes(sshAuthorizedKey []byte) (*yaml.Node, *yaml.Node, error) {
-	usersYaml :=
-		`users:
+	usersYaml := `users:
 - name: capk
   gecos: CAPK User
   sudo: ALL=(ALL) NOPASSWD:ALL

@@ -52,7 +52,7 @@ KUSTOMIZE_IMAGE = registry.k8s.io/kustomize/kustomize:v3.8.7
 KUSTOMIZE ?= docker run $(KUSTOMIZE_IMAGE)
 
 # Define Docker related variables. Releases should modify and double check these vars.
-REGISTRY ?= 127.0.0.1:5000
+REGISTRY ?= bakies
 IMAGE_NAME ?= capk-manager
 CONTROLLER_IMG ?= $(REGISTRY)/$(IMAGE_NAME)
 ARCH ?= amd64
